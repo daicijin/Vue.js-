@@ -17,7 +17,9 @@
       <nav>
         <router-link to="/top">トップページ</router-link>
         <router-link to="/users">ユーザ一覧ページ</router-link>
-        <router-link to="/users/new">ユーザ作成ページ</router-link>
+        <router-link to="/users/new?redirect=true">ユーザ作成ページ</router-link>
+        <router-link to="/login" v-show="!Auth.loggedIn()">ログイン</router-link>
+        <router-link to="/logout" v-show="Auth.loggedIn()">ログアウト</router-link>
       </nav>
       <router-view></router-view>
     </header>
@@ -37,18 +39,16 @@
     </div>
   </div>
 </script>
+
 <script type="text/x-template" id="user-detail">
   <div>
     <div class="loading" v-if="loading">読み込み中...</div> 
     <div class="error" v-if="error">
       {{ error }}
     </div>
-    <div v-if="user"> 
-      <h2>{{ user.name }}</h2>
-      <p>{{ user.description }}</p>
-    </div>
   </div>
 </script>
+
 <script type="text/x-template" id="user-create">
   <div>
     <div>
@@ -71,6 +71,23 @@
     </div>
   </div>
 </script>
+
+<script type="text/x-template" id="login">
+  <div>
+    <div>
+      <h2>Login</h2>
+      <p v-if="$route.query.redirect">ログインしてください</p>
+      <form @submit.prevent="login">
+        <label><input v-model="email" placeholder="email"></label>
+        <label><input v-model="pass" placeholder="password" type="password"></label>
+        <br>
+        <button type="submit">ログイン</button>
+        <p class="error" v-if="error">ログインに失敗しました</p>
+      </form>
+    </div>
+  </div>
+</script>
+
 
 <!-- Vue.jsの実行部分 -->
 <script>
@@ -226,6 +243,49 @@
     }
   }
 
+  var Auth = {
+    login: function(email, pass, cb){
+      setTimeout(function(){
+        if(email === 'vue@example.com' && pass === 'vue'){
+          localStorage.token = Math.random().toString(36).substring(7)
+          if(cb){ cb(true) }
+        } else {
+          if (cb) { cb(false) }
+        }
+      }, 0)
+    },
+
+    logout: function() {
+      delete localStorage.token
+    },
+
+    loggedIn: function(){
+      return !!localStorage.token
+    }
+  }
+
+  var Login = {
+    template: "#login",
+    deta: function(){
+      return {
+        email: 'vue@example.com',
+        pass:'',
+        error: false
+      }
+    },
+    methods: {
+      login: function(){
+        Auth.login(this.email, this.pass, (function(loggedIn){
+          if(!loggedIn){
+            this.error = true
+          } else {
+            this.$router.replace(this.$route.query.redirect || '/')
+          }
+        }).bind(this))
+      }
+    }
+  }
+
   var router = new VueRouter({
     routes: [
       {
@@ -240,16 +300,40 @@
       },
       {
         path: "/users/new",
-        component: UserCreate
+        component: UserCreate,
+        beforeEnter: function(to,from,next){
+          if(!Auth.loggedIn()){
+            next({
+              path: '/login',
+              query: { redirect: to.fullPath }
+            })
+          } else {
+            next()
+          }
+        }
       },
       {
         path: '/users/:userId',
         component: UserDetail
+      },
+      {
+        path: '/login',
+        component: Login
+      },
+      {
+        path: '/logout',
+        beforeEnter: function(to, from, next){
+          Auth.logout()
+          next('/top')
+        }
       }
     ]
   })
 
   var app = new Vue({
+    data: {
+      Auth:Auth
+    },
     router:router
   }).$mount('#app')
 </script>

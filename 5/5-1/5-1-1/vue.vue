@@ -1,0 +1,3 @@
+<transition>
+  <!-- transitionコンポーネント -->
+</transition>
